@@ -1,0 +1,355 @@
+## 00- Reset everything
+- `Dockerfile` 
+- `compose.yaml` 
+- volumes
+- pods on Kubernetes
+- Delete the paris-restaurants image
+- Remove the build history
+- ==**Select the default docker builder==**
+  - go to the. **builders** settings and chose `use`.
+- remove the image from the hub?
+
+```bash
+docker context ls
+docker context use default
+```
+  
+### Kube requirements
+
+```bash
+helm repo add traefik https://traefik.github.io/charts
+helm repo update
+helm install traefik traefik/traefik
+
+# namespace
+kubectl create namespace demo --dry-run=client -o yaml | kubectl apply -f -
+
+kubectl apply -f ./01-deploy.redis.yaml -n demo
+kubectl apply -f ./02-create.configmap.yaml -n 
+kubectl apply -f ./03-create.redis.client.pod.cli.yaml -n demo
+
+shell:
+cd /scripts
+chmod +x init-script.sh
+./init-script.sh
+```
+
+
+```bash
+# Run the script from the redis-client pod to load the data into Redis
+kubectl exec redis-client -n demo -- /bin/sh /scripts/init-script.sh
+```
+
+
+
+## 01- 🟢 Intro: the application
+
+Hello, So I'm Philippe; my background is a developer background.
+
+Currently, I am learning Golang and developing a small web application to offer my colleagues a list of delicious and excellent restaurants in Paris.
+
+Let me speak about this application.
+
+-----
+📝 go to /notes/00-application.md
+
+-----
+
+> - present the application + **speak about the API** (you can open the `main.go` file on the right split)
+> - explain what we are going to do
+
+## 02- 🟢 Dockerizing the application
+<!-- ✋ simplify the text -->
+
+> Dockerizing an application means several things: Dockerizing an application means packaging the application and its dependencies into a Docker container, making it portable and consistent across different environments. This process ensures that the application runs the same way regardless of where it's deployed, simplifying development, testing, and deployment.
+
+> **And it's essential to be sure that your packaging is small, efficient and secure.**
+
+
+
+### Let's start with a Dockerfile.
+
+> *I need a Dockerfile to dockerize or to package the application with all its dependencies*
+
+<!-- ✋ simplify the text -->
+
+> A Dockerfile is a script that contains a series of instructions to build a Docker image, specifying the base image, application code, dependencies, and commands to run. It's useful because it enables the creation of consistent and reproducible environments, making it easier to develop, share, and deploy applications across different systems.
+
+-----
+📝 go to /notes/01-dockerize.md
+
+-----
+
+
+<!-- ✋ simplify or remove the text -->
+Explain:
+- **First, I need a dockerfile**
+- Open on the right split, the empty `Dockerfile`
+- Copy the source code of the markdown Dockerfile to the `Dockerfile`
+- Explain the Dockerfile
+	- I will use a golang image (so I get the Go compiler)
+	- I'm defining a `WORKDIR` directory (so everything will happen in this directory)
+	- Then, I copy the source code to the Docker image.
+	- After that, I will fetch all the dependencies and build the application (the name of the binary is `tiny-service`)
+	- I'm copying the HTML, JavaScript, and CSS assets into the image.
+	- And finally, I'm starting the application.
+
+### Now, I need a Compose file.
+
+> *this compose file will help me to orchestrate the services needed to run my project*
+
+<!-- ✋ simplify the text  and put it at the beginning of the section-->
+
+> Docker Compose is a tool that allows you to define and manage multi-container Docker applications using a simple YAML file. It's useful because it simplifies the process of orchestrating and running complex applications with multiple services, ensuring they work together consistently and efficiently across different environments.
+
+- Open on the right split, the empty `compose.yaml` file
+- Copy the source code of the markdown Compose file to the `compose.yaml`
+- Explain the Compose file.
+
+#### The compose file
+
+This Docker Compose file sets up two services: `redis-server` and `webapp`.
+
+<!-- ✋ simplify the text -->
+
+
+1. **redis-server:** 
+   - It runs a Redis server using the `redis:7.2.4` image.
+   - The Redis server is configured to save data every 30 seconds if at least one key has changed, as the environment variable REDIS_ARGS specifies.
+   - The server's port `6379` is exposed to access it externally.
+   - **It mounts two volumes: one that maps a local `./scripts` directory to `/scripts` inside the container and another named `redis-data` that stores persistent Redis data in `/data`.** ==There is a script in the scripts directory to add data to Redis==
+
+2. **webapp:**
+   - This service builds an image named `paris-restaurants` from the current directory.
+   - It exposes port `8080` to make the web application accessible.
+   - The environment variables for the web app include a greeting message, a title, and the URL to connect to the Redis server.
+   - The `depends_on` option ensures that the Redis server starts before the web app.
+   - The `develop` section is for development purposes, specifying actions like syncing changes to the `./public` directory with `/app/public` in the container and rebuilding the service if `Dockerfile` or `main.go` changes.
+
+ <!-- 🤔 do not use it
+3. **volumes:**
+   - The `redis-data` volume is defined for persistently storing Redis data.
+-->
+
+### 1- Start the project
+
+*It's time to start our project*
+
+```bash
+docker compose up
+```
+
+- Explain the output in the terminal
+- Go to DD
+- Show the containers
+- Enter into the redis one + create the data
+- Run and show the web app: http://localhost:8080
+
+
+
+<!-- ✋ simplify or remove the text -->
+
+- Go to the Docker Desktop GUI
+	- Go to the **==containers==** panel.
+	- "Enter" into the **redis** container.
+	- Go to the ==**Files**== panel.
+		- Show the `script` directory.
+		- Show/edit the `load.sh` file
+	- Go to the **==Exec==** panel. And load the data==**
+		- `cd ../scripts`
+		- `ls`
+		- `./load.sh`
+	- Return to the **==containers==** panel.
+		- "Enter" into the **webapp** container.
+			- Show the logs
+		- Go to the ==**Files**== panel.
+			- Show the `app` directory.
+		- Use the URL to open the webapp in a browser.
+		- ...
+
+		
+*Now, we stop the compose project, and we will activate the watch mode*
+
+```bash
+docker compose down
+```
+> *the docker compose down command allow to stop everything in a clean way*
+
+
+
+### 2-Activate the `watch` mode and  Change something
+
+✋✋✋✋✋ use watch only at the end
+
+```bash
+docker compose watch
+```
+
+- Change something in `info.txt`
+- Save
+- Refresh
+
+### 3- Let's have a look at the "Images" panel (+ "Builds" panel)
+
+- Select the **paris-restaurants** image.
+- Show the size (it's a lot)
+- **Go to the builds panel FIRST (✋ waiting for the scout scanning)**
+- And we have a lot of vulnerabilities.
+- Explain that is **Docker Scout** + cli bla bla
+
+#### First, let's try to fix the vulnerabilities.
+Go to the recommended fixes and apply them
+
+```Dockerfile
+FROM golang:1.22-alpine
+```
+
+- Go to the images panel.
+- Show the size of the image (👍 better)
+- Show the vulnerabilities (no more?)
+
+#### Let's try to be better with the size.
+
+- Use multi-stage build
+> A Docker multi-stage build is a process where multiple stages are defined in a Dockerfile to create an optimised final image by copying only the necessary artefacts from one stage to another. It's useful because it reduces the size of the final Docker image, eliminating unnecessary dependencies and files, which leads to faster deployments and improved security.
+- Use `alpine:3.19` as the final image:
+> An Alpine Docker image is a minimal Docker image based on the Alpine Linux distribution, known for its small size and simplicity. It's useful because it reduces the overall size of Docker images, leading to faster downloads and better performance while still providing a solid foundation for running applications.
+
+```Dockerfile
+# ADD `AS builder`
+FROM golang:1.22-alpine AS builder 
+
+WORKDIR /app
+COPY main.go .
+COPY go.mod .
+
+RUN <<EOF
+go mod tidy 
+go build -o tiny-service
+EOF
+
+# INSERT this part
+FROM alpine:3.19 AS final
+WORKDIR /app
+COPY --from=builder /app/tiny-service .
+
+# KEEP this part
+COPY public ./public 
+CMD ["./tiny-service"]
+```
+
+**==Snippets:==**
+```dockerfile
+FROM golang:1.22-alpine AS builder 
+```
+
+```dockerfile
+FROM alpine:3.19
+WORKDIR /app
+COPY --from=builder /app/tiny-service .
+```
+
+#### We can do even better with a distroless image or with a scratch image
+
+> A distroless image is a minimal Docker container image that includes only the essential components needed to run an application, without a complete operating system, thereby reducing the attack surface and image size.
+
+**==Snippets:==**
+```dockerfile
+FROM gcr.io/distroless/static-debian12
+```
+> A scratch image in Docker is an empty, minimal base image used to build lightweight containers by adding only the necessary files and dependencies.
+```dockerfile
+FROM scratch
+```
+### 4- Let's have a look at the "==Builds==" panel
+### ==🤔 I think there is a bug with the build history==
+
+✋ **The build history is ok only with the ==default builder==**
+
+😡 apparently there is a problem with watch
+
+
+## 03- 🟢 Docker Debug
+
+<!-- ✋ simplify or remove the text -->
+
+
+- Return to the "**Containers**" panel.
+- Try to go to the **"Exec"** panel.
+- Explain why it does not work.
+> You cannot use `docker exec` with a distroless container because distroless images do not include a shell or common utilities, which are typically required to execute commands inside the container. 
+
+Thankfully, we now have **Docker Debug**.
+
+Docker debug is a CLI tool that allows inspection and interaction with running Docker containers in a few different ways:
+- You will gain a Shell. Docker spawns a shell inside a running container, which is helpful for troubleshooting applications.
+- You can inspect Files: Even without a shell, you can use docker debug to view the contents of a container's file system. This can help you verify that files are present and contain the expected data.
+- You can edit Files: docker debug allows you to edit files within a running container. This can be useful for quickly fixing configuration files or application code.
+- You can even install tools on the fly into the container
+Overall, **Docker Debug** is a valuable tool to help resolve issues.
+But let me do a demonstration.
+### Then activate the **Debug mode**:
+- `ls` (we are in the `/app` directory)
+- `cd public`
+- `ls`
+- `install micro`
+- `micro info.txt` and change the content by `🐳 version 0.0.0`
+- Refresh the webpage
+
+## 04- 🟢 Testcontainers
+
+At this stage, we have an almost complete toolchain for our development, but the integration and end-to-end tests of our project still need to be included.
+
+For that, we will use **Testcontainers**.
+
+<!-- ✋ simplify or remove the text -->
+
+
+Testcontainers is a framework for provisioning, on-demand containers for development and testing use cases. Testcontainers make it easy to work with databases, message brokers, web browsers, or just about anything that can run in a Docker container.
+
+You can also use Testcontainers libraries for local development. Testcontainers libraries are available for most of the popular languages like Java, Go, .NET, Node.js, Python, Ruby, Rust, Clojure, and Haskell.
+
+-----
+📝 go to /notes/03-testcontainers.md==
+
+-----
+
+- Explain
+- Run `go tests`
+
+There you go. Our toolchain is now complete.
+I can build, test, and deploy my application with confidence.
+
+## 05- 🔵 Deploy the application on Kubernetes
+
+<!-- ✋ simplify the text -->
+
+
+Today, I’m pretty happy with my first version of the application, and I’d like to deploy it somewhere on a public Kubernetes cluster. 
+
+However, I’d also like to test my deployments locally on my laptop. 
+Thanks to Docker, this is entirely possible; 
+
+Docker Desktop has a small cluster with a single node, which is sufficient for testing, experimenting, and verifying.
+
+And it's pretty useful to learn Kubernetes
+
+-----
+📝 go to /notes/04-deploy-to-kube.md==
+
+-----
+
+✋ show the manifest number 04
+
+
+We are almost done. But I would like to tell you about one last feature of Docker that can make your life easier when you need to automate your builds, do multi-architecture builds, and so on.
+
+<!-- ✋ perhaps put this before kubernetes -->
+
+## 🟠 Build with Docker Bake and multi arch build
+
+Docker Bake is like a recipe book for building Docker images. Docker Bake helps you build different Docker images.
+
+You usually use a docker build command when you want to build a Docker image. This command needs a lot of information, such as the location of the Dockerfile, the tags for the image, and so on. If your build configuration is complex, it can be hard to remember all the details.
+
+That's where Docker Bake comes in. It lets you write down all the details of your build configuration in a file called a Bake file, which can be written in different formats like HCL, JSON, or YAML.

@@ -1,0 +1,67 @@
+---
+# Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: demo-accelerate
+  labels:
+    component: accelerate
+spec:
+  selector:
+    app: demo-accelerate
+  ports:
+    - port: 80
+      targetPort: 8080
+---
+# Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-accelerate
+  labels:
+    component: accelerate
+spec:
+  replicas: 3 # 👋
+  selector:
+    matchLabels:
+      app: demo-accelerate
+  template:
+    metadata:
+      labels:
+        app: demo-accelerate
+    spec:
+      containers:
+        - name: demo-accelerate
+          image: philippecharriere494/paris-restaurants:0.0.1
+          env:
+          - name: MESSAGE
+            value: "👋 Hello World 🌍 I'm running on K8S on Docker"
+          - name: REDIS_URL
+            value: "redis-server:6379"
+          - name: TITLE
+            value: "My favorite restaurants in Paris 🇫🇷"
+          ports:
+            - containerPort: 8080
+          imagePullPolicy: Always
+          #imagePullPolicy: IfNotPresent
+
+---
+# Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: demo-accelerate
+  labels:
+    component: accelerate
+spec:
+  rules:
+    - host: accelerate.0.0.0.0.nip.io
+      http:
+        paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service: 
+              name: demo-accelerate
+              port: 
+                number: 80

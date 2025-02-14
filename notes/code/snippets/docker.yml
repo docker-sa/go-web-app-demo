@@ -1,0 +1,127 @@
+snippet init-golang-simple:
+  prefix: "1-docker-init-simple"
+  name: "golang-simple"
+  description: "generate a simple Dockerfile for a Golang application"
+  scope: "dockerfile"
+  body: |
+    FROM golang:1.22.4
+    WORKDIR /app
+    COPY main.go .
+    COPY go.mod .
+
+    RUN <<EOF
+    go mod tidy 
+    go build -o tiny-service
+    EOF
+
+    COPY public ./public 
+    CMD ["./tiny-service"]
+
+
+snippet init-golang-multi-stage-alpine:
+  prefix: "2-docker-init-multi-stage"
+  name: "golang-multi-stage"
+  description: "generate a simple Dockerfile for a Golang application with 2 stages"
+  scope: "dockerfile"
+  body: |
+    FROM golang:1.22.1-alpine AS builder
+
+    WORKDIR /app
+
+    COPY main.go .
+    COPY go.mod .
+    
+    RUN <<EOF
+    go mod tidy 
+    go build -o ${1:binary_name}
+    EOF
+
+    FROM alpine:3.17.2 AS final
+
+    WORKDIR /app
+
+    COPY --from=builder /app/${1:binary_name} .
+    COPY public ./public 
+    CMD ["./${1:binary_name}"]
+
+snippet init-golang-multi-stage-scratch:
+  prefix: "3-docker-init-multi-stage-scratch"
+  name: "golang-multi-stage-scratch"
+  description: |
+    generate a simple Dockerfile for a Golang application with 2 stages, 
+    the last one is using scratch"
+  scope: "dockerfile"
+  body: |
+    FROM golang:1.22.1-alpine AS builder
+
+    WORKDIR /app
+
+    COPY main.go .
+    COPY go.mod .
+    
+    RUN <<EOF
+    go mod tidy 
+    go build -o ${1:binary_name}
+    EOF
+
+    FROM scratch
+
+    WORKDIR /app
+
+    COPY --from=builder /app/${1:binary_name} .
+    COPY public ./public 
+    CMD ["./${1:binary_name}"]
+
+
+snippet init-compose:
+  prefix: "1-compose-redis-service"
+  name: "compose redis service"
+  description: |
+    initialize the compose file
+    with the redis service
+  scope: "yaml"
+  body: |
+    services:
+      redis-server:
+        image: redis:7.2.4
+        environment: 
+          - REDIS_ARGS=--save 30 1
+        ports:
+          - 6379:6379
+        volumes:
+          - ./data:/data
+
+snippet webapp-compose:
+  prefix: "2-compose-webapp-service"
+  name: "compose webapp service"
+  description: |
+    add the webapp service
+  scope: "yaml"
+  body: |
+    webapp:
+      build: .
+      ports:
+        - 8080:8080 
+      environment:
+        - MESSAGE=${1:message_to_display}
+        - TITLE=${2:website_title}
+        - REDIS_URL=redis-server:6379    
+      depends_on:
+        - redis-server 
+
+snippet webapp-compose-watch:
+  prefix: "3-compose-watch-webapp-service"
+  name: "compose watch webapp service"
+  description: |
+    add develop section to the webapp service
+  scope: "yaml"
+  body: |
+      develop:
+        watch:
+          - action: sync
+            path: ./public
+            target: /app/public
+          - action: rebuild
+            path: ./Dockerfile
+          - action: rebuild
+            path: ./main.go

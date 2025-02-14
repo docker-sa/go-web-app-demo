@@ -1,0 +1,54 @@
+
+
+== 00-application.md
+
+- Present the application
+- Speak about the API
+- Explain "Dockerizing"
+  - packaging the application and its dependencies into a Docker container, making it portable
+  - We will use a Dockerfile to create the image
+  - And a compose file to orchestrate the build and the running
+- Agenda of the demo:
+  - the demo is splitted into several pieces
+
+== 01-dockerize.md
+
+This Dockerfile is used to build a Docker image for a Go application. Here's a step-by-step explanation:
+
+1. `FROM golang:1.22.4`: This line sets the base image for the Docker image. The base image is `golang:1.22.4`, which is an official Docker image that includes Go version 1.22.4.
+
+2. `WORKDIR /app`: This line sets the working directory in the Docker image to `/app`. All subsequent commands in the Dockerfile will be run in this directory.
+
+3. `COPY main.go .` and `COPY go.mod .`: These lines copy the `main.go` and `go.mod` files from your local machine to the current directory (`/app`) in the Docker image.
+
+4. `RUN <<EOF ... EOF`: This block runs multiple commands in the Docker image. In this case, it runs `go mod tidy` to ensure that the `go.mod` file matches the source code in the module and `go build -o tiny-service` to build the Go application and output the executable to a file named `tiny-service`.
+
+5. `COPY public ./public`: This line copies the `public` directory from your local machine to the `public` directory in the Docker image.
+
+6. `CMD ["./tiny-service"]`: This line sets the default command to run when a container is started from the Docker image. In this case, it runs the `tiny-service` executable.
+
+For more information on Dockerfiles, you can refer to the [Dockerfile reference](https://docs.docker.com/reference/dockerfile/).
+
+This is a Docker Compose file that defines two services: `redis-server` and `webapp`:
+  - the first service is for running a Redis Database
+    - It uses the `redis:7.2.4` image pulled from the Docker Hub registry.
+    - It sets an environment variable `REDIS_ARGS` with the value `--save 30 1`.
+    - It binds the container and the host machine to the exposed port `6379`.
+    - It mounts two volumes: `./scripts` from your project directory to `/scripts` in the container and `./data` from your project directory to `/data` in the container.
+  - the second service is for running the
+    - It builds an image from the `Dockerfile` in the current directory and names it `paris-restaurants`.
+    - It binds the container and the host machine to the exposed port `8080`.
+    - It sets three environment variables: `MESSAGE` with the value `🎉 Hello from 🐳 Compose 👋`, `TITLE` with the value `My favorite restaurants`, and `REDIS_URL` with the value `redis-server:6379`.
+    - It depends on the `redis-server` service, meaning the `redis-server` service will be started before the `webapp` service.
+    - It has a `develop` block that watches for changes in certain files and performs actions accordingly. If any file in `./public` changes, it syncs the changes to `/app/public` in the container. If the `Dockerfile` or `./main.go` changes, it rebuilds the image.
+
+
+This is a Docker Compose file that defines two services: `redis-server` and `webapp`.
+
+2. `webapp` service:
+   - It builds an image from the `Dockerfile` in the current directory and names it `paris-restaurants`.
+   - It binds the container and the host machine to the exposed port `8080`.
+   - It sets three environment variables: `MESSAGE` with the value `🎉 Hello from 🐳 Compose 👋`, `TITLE` with the value `My favorite restaurants`, and `REDIS_URL` with the value `redis-server:6379`.
+   - It depends on the `redis-server` service, meaning the `redis-server` service will be started before the `webapp` service.
+   - It has a `develop` block that watches for changes in certain files and performs actions accordingly. If any file in `./public` changes, it syncs the changes to `/app/public` in the container. If the `Dockerfile` or `./main.go` changes, it rebuilds the image.
+

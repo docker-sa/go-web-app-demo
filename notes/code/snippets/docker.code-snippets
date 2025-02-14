@@ -1,0 +1,129 @@
+{
+  "compose redis service": {
+    "body": [
+      "services:",
+      "  redis-server:",
+      "    image: redis:7.2.4",
+      "    environment: ",
+      "      - REDIS_ARGS=--save 30 1",
+      "    ports:",
+      "      - 6379:6379",
+      "    volumes:",
+      "      - ./data:/data",
+      ""
+    ],
+    "description": "initialize the compose file\nwith the redis service\n",
+    "prefix": "1-compose-redis-service",
+    "scope": "dockercompose"
+  },
+  "compose watch webapp service": {
+    "body": [
+      "develop:",
+      "  watch:",
+      "    - action: sync",
+      "      path: ./public",
+      "      target: /app/public",
+      "    - action: rebuild",
+      "      path: ./Dockerfile",
+      "    - action: rebuild",
+      "      path: ./main.go"
+    ],
+    "description": "add develop section to the webapp service\n",
+    "prefix": "3-compose-watch-webapp-service",
+    "scope": "dockercompose"
+  },
+  "compose webapp service": {
+    "body": [
+      "webapp:",
+      "  build: .",
+      "  ports:",
+      "    - 8080:8080 ",
+      "  environment:",
+      "    - MESSAGE=${1:message_to_display}",
+      "    - TITLE=${2:website_title}",
+      "    - REDIS_URL=redis-server:6379    ",
+      "  depends_on:",
+      "    - redis-server ",
+      ""
+    ],
+    "description": "add the webapp service\n",
+    "prefix": "2-compose-webapp-service",
+    "scope": "dockercompose"
+  },
+  "golang-multi-stage": {
+    "body": [
+      "FROM golang:1.22.1-alpine AS builder",
+      "",
+      "WORKDIR /app",
+      "",
+      "COPY main.go .",
+      "COPY go.mod .",
+      "",
+      "RUN \u003c\u003cEOF",
+      "go mod tidy ",
+      "go build -o ${1:binary_name}",
+      "EOF",
+      "",
+      "FROM alpine:3.17.2 AS final",
+      "",
+      "WORKDIR /app",
+      "",
+      "COPY --from=builder /app/${1:binary_name} .",
+      "COPY public ./public ",
+      "CMD [\"./${1:binary_name}\"]",
+      ""
+    ],
+    "description": "generate a simple Dockerfile for a Golang application with 2 stages",
+    "prefix": "2-docker-init-multi-stage",
+    "scope": "dockerfile"
+  },
+  "golang-multi-stage-scratch": {
+    "body": [
+      "FROM golang:1.22.1-alpine AS builder",
+      "",
+      "WORKDIR /app",
+      "",
+      "COPY main.go .",
+      "COPY go.mod .",
+      "",
+      "RUN \u003c\u003cEOF",
+      "go mod tidy ",
+      "go build -o ${1:binary_name}",
+      "EOF",
+      "",
+      "FROM scratch",
+      "",
+      "WORKDIR /app",
+      "",
+      "COPY --from=builder /app/${1:binary_name} .",
+      "COPY public ./public ",
+      "CMD [\"./${1:binary_name}\"]",
+      ""
+    ],
+    "description": "generate a simple Dockerfile for a Golang application with 2 stages, \nthe last one is using scratch\"\n",
+    "prefix": "3-docker-init-multi-stage-scratch",
+    "scope": "dockerfile"
+  },
+  "golang-simple": {
+    "body": [
+      "FROM golang:1.22.1-alpine",
+      "",
+      "WORKDIR /app",
+      "",
+      "COPY public ./public ",
+      "COPY main.go .",
+      "COPY go.mod .",
+      "",
+      "RUN \u003c\u003cEOF",
+      "go mod tidy ",
+      "go build -o ${1:binary_name}",
+      "EOF",
+      "",
+      "CMD [\"./${1:binary_name}\"]",
+      ""
+    ],
+    "description": "generate a simple Dockerfile for a Golang application",
+    "prefix": "1-docker-init-simple",
+    "scope": "dockerfile"
+  }
+}
